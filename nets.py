@@ -4,6 +4,23 @@ import torchvision
 import torch
 
 
+class MyBlock(nn.Module):
+    def __init__(self, n):
+        super(MyBlock, self).__init__()
+        a = (n+n//8)//3
+        self.conv1 = MyConv(n, a-n//8, [3, 3], 1, 1, is_pooling=False)
+        self.conv2 = MyConv(n, a, [5, 5], 1, 2, is_pooling=False)
+        self.conv3 = MyConv(n, a, [7, 7], 1, 3, is_pooling=False)
+
+    def forward(self, x):
+        y1 = self.conv1(x)
+        y2 = self.conv2(x)
+        y3 = self.conv3(x)
+        # print(y1.size(), y2.size(), y3.size())
+        y = torch.cat([y1, y2, y3], 1)
+        return y
+
+
 class MyConv(nn.Module):
     """
     H = H_in + 2p[0] -kernel_size[0] + 1
@@ -101,22 +118,32 @@ class ZZBNet_conv1d(nn.Module):
 class ZZBNet(nn.Module):
     def __init__(self):
         super(ZZBNet, self).__init__()
-
+        torchvision.models.inception_v3()
         self.conv1 = MyConv(1, 16, [3, 3], 1, 1, is_pooling=True)
         self.conv2 = MyConv(16, 32, [3, 3], 1, 1, is_pooling=True)
 
-        # self.bn1 = torch.nn.BatchNorm2d()
+        self.bn1 = torch.nn.BatchNorm2d(32)
+
         self.conv3 = MyConv(32, 64, [3, 3], 1, 1, is_pooling=True)
-        self.conv4 = MyConv(64, 64, [3, 3], 1, 1, is_pooling=False)
+        # self.conv4 = MyConv(64, 64, [3, 3], 1, 1, is_pooling=False)
+        self.conv4 = MyBlock(64)
+
+        self.bn2 = torch.nn.BatchNorm2d(64)
 
         self.conv5 = MyConv(64, 128, [3, 3], 1, 1, is_pooling=True)
-        self.conv6 = MyConv(128, 128, [3, 3], 1, 1, is_pooling=False)
+        # self.conv6 = MyConv(128, 128, [3, 3], 1, 1, is_pooling=False)
+        self.conv6 = MyBlock(128)
+
+        self.bn3 = torch.nn.BatchNorm2d(128)
 
         self.conv7 = MyConv(128, 256, [3, 3], 1, 1, is_pooling=False)
-        self.conv8 = MyConv(256, 256, [3, 3], 1,1, is_pooling=False)
+        # self.conv8 = MyConv(256, 256, [3, 3], 1, 1, is_pooling=False)
+        self.conv8 = MyBlock(256)
+
+        self.bn4 = torch.nn.BatchNorm2d(256)
 
         self.conv9 = MyConv(256, 512, [3, 3], 1, 1, is_pooling=False)
-        self.conv10 = MyConv(512, 512, [3, 3], 1, 1, is_pooling=True)
+        self.conv10 = MyConv(512, 512, [3, 3], 1, [1, 0], is_pooling=True)
 
         # self.fc1 = nn.Linear(16*21*64, 1024)
         self.fc1 = nn.Linear(4 * 4 * 512, 1024)
@@ -128,14 +155,23 @@ class ZZBNet(nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
+        x = self.bn1(x)
+
         x = self.conv3(x)
         x = self.conv4(x)
+        x = self.bn2(x)
+
         x = self.conv5(x)
         x = self.conv6(x)
+        x = self.bn3(x)
+
         x = self.conv7(x)
         x = self.conv8(x)
+        x = self.bn4(x)
+
         x = self.conv9(x)
         x = self.conv10(x)
+        # print(x.size())
         # x = x.view(-1, 16*21*64)
         # print(x.size())
         x = x.view(-1, 4*4*512)
